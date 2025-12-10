@@ -25,6 +25,8 @@
 #include <GlobalNamespace/WaypointData.hpp>
 #include <System/Collections/Generic/LinkedList_1.hpp>
 #include <System/Diagnostics/Stopwatch.hpp>
+#include <UnityEngine/Mathf.hpp>
+#include <GlobalNamespace/NoteCutDirectionExtensions.hpp>
 
 #include <sombrero/shared/FastQuaternion.hpp>
 #include <sombrero/shared/FastVector2.hpp>
@@ -338,8 +340,8 @@ MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNam
 		GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
 }
 
-MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
-	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
+UnityEngine::Vector3 BeatmapObjectSpawnMovementData_GetObstacleOffset_modified(GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
+	const UnityEngine::Vector3 result = self->GetObstacleOffset(noteLineIndex, noteLineLayer);
 	if(!active)
 		return result;
 	if(noteLineIndex <= -1000)
@@ -491,9 +493,20 @@ MAKE_HOOK_MATCH(NoteData_Mirror, &GlobalNamespace::NoteData::Mirror, void, Globa
 		self->set_flipLineIndex(*newFlipLineIndex);
 }
 
+GlobalNamespace::ObstacleSpawnData BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
+	UnityEngine::Vector3 obstacleOffset = BeatmapObjectSpawnMovementData_GetObstacleOffset_modified(self, obstacleData->lineIndex, obstacleData->lineLayer);
+	obstacleOffset.y += self->_jumpOffsetYProvider->jumpOffsetY;
+	obstacleOffset.y = UnityEngine::Mathf::Max(obstacleOffset.y, self->_verticalObstaclePosY);
+	float obstacleHeight = UnityEngine::Mathf::Min((float) obstacleData->height * 0.6f, self->_obstacleTopPosY - obstacleOffset.y);
+	float obstacleWidth = (float) obstacleData->width * 0.6f;
+	obstacleOffset.x += (float) (((double) obstacleWidth - 0.6000000238418579) * 0.5);
+	return GlobalNamespace::ObstacleSpawnData(obstacleOffset, obstacleWidth, obstacleHeight);
+}
+
+
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleSpawnData, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleSpawnData,
 		GlobalNamespace::ObstacleSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
-	GlobalNamespace::ObstacleSpawnData result = BeatmapObjectSpawnMovementData_GetObstacleSpawnData(self, obstacleData);
+	GlobalNamespace::ObstacleSpawnData result = BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(self, obstacleData);
 	float obstacleWidth = static_cast<float>(obstacleData->width);
 	if(!active)
 		return result;
@@ -506,7 +519,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleSpawnData, &GlobalName
 		result.obstacleWidth = obstacleWidth;
 	}
 
-	const float height = static_cast<float>(obstacleData->height), layerHeight = GlobalNamespace::StaticBeatmapObjectSpawnMovementData::get_layerHeight();
+	const float height = static_cast<float>(obstacleData->height), layerHeight = 0.6f; // Hardcode :3
 	if(height <= -1000)
 		result.obstacleHeight = (height + 2000) / 1000 * layerHeight;
 	else if(height >= 1000)
@@ -548,22 +561,19 @@ MAKE_HOOK_MATCH(SliderData_Mirror, &GlobalNamespace::SliderData::Mirror, void, G
 		self->tailLineIndex = *newTailLineIndex;
 }
 
-MAKE_HOOK_MATCH(SliderMeshController_CutDirectionToControlPointPosition, &GlobalNamespace::SliderMeshController::CutDirectionToControlPointPosition, UnityEngine::Vector3, GlobalNamespace::NoteCutDirection noteCutDirection) {
+MAKE_HOOK_MATCH(SliderMeshController_CutDirectionToControlPointPosition, &GlobalNamespace::SliderMeshController::CutDirectionToControlPointPosition, UnityEngine::Vector3, GlobalNamespace::NoteCutDirection noteCutDirection, float angleOffset) {
 	UnityEngine::Vector3 result = {};
 	if constexpr(UseOrigHooks) {
 		switch(noteCutDirection) {
-			case GlobalNamespace::NoteCutDirection::Up: result = UnityEngine::Vector3(0, 1, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::Down: result = UnityEngine::Vector3(0, -1, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::Left: result = UnityEngine::Vector3(-1, 0, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::Right: result = UnityEngine::Vector3(1, 0, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::UpLeft: result = UnityEngine::Vector3(-.70710677f, .70710677f, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::UpRight: result = UnityEngine::Vector3(.70710677f, .70710677f, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::DownLeft: result = UnityEngine::Vector3(-.70710677f, -.70710677f, -1e-05f); break;
-			case GlobalNamespace::NoteCutDirection::DownRight: result = UnityEngine::Vector3(.70710677f, -.70710677f, -1e-05f); break;
-			default:;
-		}
+			case GlobalNamespace::NoteCutDirection::None: result = UnityEngine::Vector3(0,0,0); break;
+			case GlobalNamespace::NoteCutDirection::Any: result = UnityEngine::Vector3(0,0,0); break;
+			default:
+				float num = GlobalNamespace::NoteCutDirectionExtensions::RotationAngle(noteCutDirection);
+				result = UnityEngine::Vector3(UnityEngine::Mathf::Sin((num + angleOffset) * 0.017453292f), -UnityEngine::Mathf::Cos((num + angleOffset) * 0.017453292f), -1E-05f);
+				break;
+			}
 	} else {
-		result = SliderMeshController_CutDirectionToControlPointPosition(noteCutDirection);
+		result = SliderMeshController_CutDirectionToControlPointPosition(noteCutDirection, angleOffset);
 	}
 	if(!active)
 		return result;
@@ -582,23 +592,19 @@ MAKE_HOOK_MATCH(SliderMeshController_CutDirectionToControlPointPosition, &Global
 
 MAKE_HOOK_MATCH_NO_CATCH(StaticBeatmapObjectSpawnMovementData_LineYPosForLineLayer,
 		&GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer, float, const GlobalNamespace::NoteLineLayer lineLayer) {
-	float result = GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kTopLinesYPos;
+	float result = 1.45f;
 	if constexpr(UseOrigHooks) {
-		switch(lineLayer) {
-			case GlobalNamespace::NoteLineLayer::Base: result = GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kBaseLinesYPos; break;
-			case GlobalNamespace::NoteLineLayer::Upper: result = GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kUpperLinesYPos; break;
-			default:;
-		}
+		result = 0.25f + 0.6f * static_cast<float>(lineLayer.value__);
 	} else {
 		result = StaticBeatmapObjectSpawnMovementData_LineYPosForLineLayer(lineLayer);
 	}
 	if(!active)
 		return result;
-	constexpr float delta = GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kTopLinesYPos - GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kUpperLinesYPos;
+	constexpr float delta = 1.45f - 0.85f;
 	if(lineLayer.value__ >= 1000 || lineLayer.value__ <= -1000)
-		return GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kUpperLinesYPos - delta * 2 + static_cast<float>(lineLayer.value__) * (delta / 1000.f);
+		return 0.85f - delta * 2 + static_cast<float>(lineLayer.value__) * (delta / 1000.f);
 	if(static_cast<uint32_t>(lineLayer.value__) > 2u)
-		return GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kUpperLinesYPos - delta + static_cast<float>(lineLayer.value__) * delta;
+		return 0.85f - delta + static_cast<float>(lineLayer.value__) * delta;
 	return result;
 }
 
@@ -630,7 +636,6 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 	Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesAndSlidersDidFinishTimeSlice>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetNoteOffset>(logger);
 	Hooking::InstallHook<Hook_StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset>(logger);
-	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetObstacleOffset>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer>(logger);
 	Hooking::InstallHook<Hook_ColorNoteVisuals_HandleNoteControllerDidInit>(logger);
 	Hooking::InstallHook<Hook_NoteBasicCutInfoHelper_GetBasicCutInfo>(logger);
