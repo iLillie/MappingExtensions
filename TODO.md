@@ -3,4 +3,4 @@
 - [x] BeatmapObjectSpawnMovementData::GetObstacleOffset
 - [ ] StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer
 - [ ] StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset
-- [ ] BeatmapObjectSpawnMovementData::GetNoteOffset
+- [X] BeatmapObjectSpawnMovementData::GetNoteOffset
