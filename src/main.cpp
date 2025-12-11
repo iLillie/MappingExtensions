@@ -379,8 +379,15 @@ MAKE_HOOK_MATCH(BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceCont
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetNoteOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, const GlobalNamespace::NoteLineLayer noteLineLayer) {
 	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetNoteOffset(self, noteLineIndex, noteLineLayer);
-	if(!isMappingExtensionsMap || isWithinGameBounds(noteLineIndex))
+	if(!isMappingExtensionsMap)
 		return result;
+        // INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer function instead of inlined
+        // Added in: Unity 6 update
+        if (isWithinGameBounds(noteLineIndex)) {
+            float num = -static_cast<float>(self->_noteLinesCount - 1) * 0.5f;
+            num = (num + static_cast<float>(noteLineIndex)) * 0.6f;
+            return Sombrero::FastVector3(self->_rightVec) * num + Sombrero::FastVector3(UnityEngine::Vector3(0.0f,  GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer), 0.0f));
+        }
 
 	if(noteLineIndex <= -1000)
 	    noteLineIndex += 2000;
