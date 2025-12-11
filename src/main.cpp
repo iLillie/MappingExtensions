@@ -33,6 +33,7 @@
 #include <System/Diagnostics/Stopwatch.hpp>
 #include <System/Collections/Generic/IReadOnlyList_1.hpp>
 #include <GlobalNamespace/Vector2Extensions.hpp>
+#include <GlobalNamespace/RotationTimeProcessor.hpp>
 
 #include <UnityEngine/Mathf.hpp>
 
@@ -381,6 +382,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::
 	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetNoteOffset(self, noteLineIndex, noteLineLayer);
 	if(!isMappingExtensionsMap)
 		return result;
+
         // INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer function instead of inlined
         // Added in: Unity 6 update
         if (isWithinGameBounds(noteLineIndex)) {
@@ -427,7 +429,6 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetGravityBase, &GlobalNamespace:
            GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(beforeJumpLineLayer);
 }
 
-
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
 	if(!isMappingExtensionsMap)
 		return StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset(noteLineIndex, noteLinesCount, noteLineLayer);
@@ -446,8 +447,6 @@ MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNam
 			(GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kNoteLinesDistance / 1000.f),
 		GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
 }
-
-
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
     if(!isMappingExtensionsMap)
@@ -468,14 +467,14 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespa
     return MappingExtensions::BeatmapObjectsTransform::ObstacleOffset(self, noteLineIndex, noteLineLayer);
 }
 
-
-
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer, &GlobalNamespace::BeatmapObjectSpawnMovementData::HighestJumpPosYForLineLayer, float, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::NoteLineLayer lineLayer) {
 	float result = BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer(self, lineLayer);
 	if(!isMappingExtensionsMap)
 		return result;
-	const float delta = (self->_topLinesHighestJumpPosY - self->_upperLinesHighestJumpPosY);
-	if(lineLayer.value__ >= 1000 || lineLayer.value__ <= -1000)
+
+        const float delta = (self->_topLinesHighestJumpPosY - self->_upperLinesHighestJumpPosY);
+
+        if(lineLayer.value__ >= 1000 || lineLayer.value__ <= -1000)
 		return self->_upperLinesHighestJumpPosY - delta - delta + self->_jumpOffsetYProvider->get_jumpOffsetY() +
 			static_cast<float>(lineLayer.value__) * (delta / 1000.f);
 	if(static_cast<uint32_t>(lineLayer.value__) > 2u)
@@ -623,10 +622,13 @@ GlobalNamespace::ObstacleSpawnData BeatmapObjectSpawnMovementData_GetObstacleSpa
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleSpawnData, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleSpawnData,
 		GlobalNamespace::ObstacleSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
-	GlobalNamespace::ObstacleSpawnData result = BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(self, obstacleData);
-	float obstacleWidth = static_cast<float>(obstacleData->width);
 	if(!isMappingExtensionsMap)
-		return result;
+		return BeatmapObjectSpawnMovementData_GetObstacleSpawnData(self, obstacleData);
+
+        GlobalNamespace::ObstacleSpawnData result = BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(self, obstacleData);
+
+        float obstacleWidth = static_cast<float>(obstacleData->width);
+
 	if(obstacleWidth <= -1000 || obstacleWidth >= 1000) {
 		result.moveOffset.x = result.moveOffset.x - (obstacleWidth * .6f - .6f) * .5f;
 		if(obstacleWidth <= -1000)
@@ -725,6 +727,18 @@ MAKE_HOOK_MATCH_NO_CATCH(StaticBeatmapObjectSpawnMovementData_LineYPosForLineLay
 	return result;
 }
 
+
+MAKE_HOOK_MATCH(RotationTimeProcessor_SpawnRotationForEventValue, &GlobalNamespace::RotationTimeProcessor::SpawnRotationForEventValue, int32_t, int32_t index) {
+    if (!isMappingExtensionsMap)
+        return RotationTimeProcessor_SpawnRotationForEventValue(index);
+
+    if (index >= 1000 && index <= 1720) {
+        return index - 1360;
+    }
+
+    return RotationTimeProcessor_SpawnRotationForEventValue(index);
+}
+
 extern "C" void setup(CModInfo*);
 extern "C" [[gnu::visibility("default")]] void setup(CModInfo *const modInfo) {
 	*modInfo = {
@@ -750,6 +764,7 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 		// Hooking::InstallHook<Hook_BeatmapDataLoaderVersion4_BeatmapDataLoader_GetBeatmapDataFromSaveData>(logger); // TODO: implement
 	}
 
+        Hooking::InstallHook<Hook_RotationTimeProcessor_SpawnRotationForEventValue>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesAndSlidersDidFinishTimeSlice>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetGravityBase>(logger);
