@@ -13,4 +13,13 @@ namespace MappingExtensions {
                         GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kObstacleVerticalOffset, 0);
     }
 
+    UnityEngine::Vector3 BeatmapObjectsTransform::NoteOffset(
+        GlobalNamespace::BeatmapObjectSpawnMovementData* const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer const noteLineLayer
+    ) {
+        return Sombrero::FastVector3(self->_rightVec) * (static_cast<float>(-self->noteLinesCount + 1) * .5f +
+                        static_cast<float>(noteLineIndex) * (GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kNoteLinesDistance / 1000.f)) +
+                        Sombrero::FastVector3(0, GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer), 0);
+    }
+
+
 }

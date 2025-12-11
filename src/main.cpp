@@ -46,6 +46,11 @@ static const std::string_view requirementNames[] = {
 	"Mapping Extensions-More Lanes",
 };
 
+bool isWithinGameBounds(int32_t value) {
+    // -999 -> 999
+    return value >= -999 && value <= 999;
+}
+
 static bool isMappingExtensionsMap = false;
 MAKE_HOOK_MATCH(GameplayCoreSceneSetupData_LoadTransformedBeatmapDataAsync, &GlobalNamespace::GameplayCoreSceneSetupData::LoadTransformedBeatmapDataAsync,
 		System::Threading::Tasks::Task*, GlobalNamespace::GameplayCoreSceneSetupData *const self) {
@@ -313,15 +318,13 @@ MAKE_HOOK_MATCH(BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesA
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetNoteOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, const GlobalNamespace::NoteLineLayer noteLineLayer) {
 	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetNoteOffset(self, noteLineIndex, noteLineLayer);
-	if(!isMappingExtensionsMap)
+	if(!isMappingExtensionsMap || isWithinGameBounds(noteLineIndex))
 		return result;
+
 	if(noteLineIndex <= -1000)
-		noteLineIndex += 2000;
-	else if(noteLineIndex < 1000)
-		return result;
-	return Sombrero::FastVector3(self->_rightVec) * (static_cast<float>(-self->noteLinesCount + 1) * .5f +
-		static_cast<float>(noteLineIndex) * (GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kNoteLinesDistance / 1000.f)) +
-		Sombrero::FastVector3(0, GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer), 0);
+	    noteLineIndex += 2000;
+
+	return MappingExtensions::BeatmapObjectsTransform::NoteOffset(self, noteLineIndex, noteLineLayer);
 }
 
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
@@ -338,10 +341,7 @@ MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNam
 		GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
 }
 
-bool isWithinGameBounds(int32_t value) {
-    // -999 -> 999
-    return value >= -999 && value <= 999;
-}
+
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
     const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
