@@ -20,6 +20,8 @@
 #include <GlobalNamespace/ObstacleData.hpp>
 #include <GlobalNamespace/SliderData.hpp>
 #include <GlobalNamespace/SliderMeshController.hpp>
+#include <GlobalNamespace/SliderSpawnData.hpp>
+#include <GlobalNamespace/NoteSpawnData.hpp>
 #include <GlobalNamespace/StaticBeatmapObjectSpawnMovementData.hpp>
 #include <GlobalNamespace/WaypointData.hpp>
 #include <scotland2/shared/loader.hpp>
@@ -325,6 +327,28 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::
 	    noteLineIndex += 2000;
 
 	return MappingExtensions::BeatmapObjectsTransform::NoteOffset(self, noteLineIndex, noteLineLayer);
+}
+
+// INLINE-FIX: call BeatmapObjectSpawnMovementData::GetNoteOffset function instead of inlined
+// Added in: Unity 6 update
+MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetJumpingNoteSpawnData, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetJumpingNoteSpawnData, GlobalNamespace::NoteSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, ::GlobalNamespace::NoteData* noteData) {
+    if (!isMappingExtensionsMap)
+        return BeatmapObjectSpawnMovementData_GetJumpingNoteSpawnData(self, noteData);
+
+    UnityEngine::Vector3 noteOffset = self->GetNoteOffset(noteData->lineIndex, noteData->beforeJumpNoteLineLayer);
+    UnityEngine::Vector3 vector = ((noteData->colorType != GlobalNamespace::ColorType::None) ? self->GetNoteOffset(noteData->flipLineIndex, noteData->beforeJumpNoteLineLayer) : noteOffset);
+    return GlobalNamespace::NoteSpawnData(vector, vector, noteOffset, self->GetGravityBase(noteData->noteLineLayer, noteData->beforeJumpNoteLineLayer));
+}
+
+// INLINE-FIX: call BeatmapObjectSpawnMovementData::GetNoteOffset function instead of inlined
+// Added in: Unity 6 update
+MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetSliderSpawnData, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetSliderSpawnData, GlobalNamespace::SliderSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, ::GlobalNamespace::SliderData* sliderData) {
+    if (!isMappingExtensionsMap)
+        return BeatmapObjectSpawnMovementData_GetSliderSpawnData(self, sliderData);
+
+    UnityEngine::Vector3 noteOffset = self->GetNoteOffset(sliderData->headLineIndex, sliderData->headBeforeJumpLineLayer);
+    UnityEngine::Vector3 noteOffset2 = self->GetNoteOffset(sliderData->tailLineIndex, sliderData->tailBeforeJumpLineLayer);
+    return GlobalNamespace::SliderSpawnData(noteOffset, self->GetGravityBase(sliderData->headLineLayer, sliderData->headBeforeJumpLineLayer), noteOffset2, self->GetGravityBase(sliderData->tailLineLayer, sliderData->tailBeforeJumpLineLayer));
 }
 
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
@@ -638,7 +662,9 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 	}
 
 	Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesAndSlidersDidFinishTimeSlice>(logger);
-	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetNoteOffset>(logger);
+        Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetSliderSpawnData>(logger);
+        Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetJumpingNoteSpawnData>(logger);
+        Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetNoteOffset>(logger);
 	Hooking::InstallHook<Hook_StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer>(logger);
 	Hooking::InstallHook<Hook_ColorNoteVisuals_HandleNoteControllerDidInit>(logger);
