@@ -31,6 +31,9 @@
 #include <songcore/shared/SongCore.hpp>
 #include <System/Collections/Generic/LinkedList_1.hpp>
 #include <System/Diagnostics/Stopwatch.hpp>
+#include <System/Collections/Generic/IReadOnlyList_1.hpp>
+#include <GlobalNamespace/Vector2Extensions.hpp>
+
 #include <UnityEngine/Mathf.hpp>
 
 #include "BeatmapObjectsTransform.hpp"
@@ -317,6 +320,62 @@ MAKE_HOOK_MATCH(BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesA
 		}
 	}
 }
+
+// INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset function instead of inlined
+// Added in: Unity 6 update
+MAKE_HOOK_MATCH(BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice,
+                &GlobalNamespace::BeatmapObjectsInTimeRowProcessor::HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice, void,
+                GlobalNamespace::BeatmapObjectsInTimeRowProcessor *const self,
+                ::GlobalNamespace::BeatmapObjectsInTimeRowProcessor_TimeSliceContainer_1<::GlobalNamespace::NoteData*>* timeSliceContainer, float_t nextTimeSliceTime) {
+    if (!isMappingExtensionsMap)
+        return BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice(self, timeSliceContainer, nextTimeSliceTime);
+
+    auto items = timeSliceContainer->items;
+
+    if (items->i___System__Collections__Generic__IReadOnlyCollection_1_T_()->Count != 2)
+        return;
+
+    GlobalNamespace::NoteData* noteData = items->get_Item(0);
+    GlobalNamespace::NoteData* noteData2 = items->get_Item(1);
+    if (noteData->cutDirection != noteData2->cutDirection && noteData->cutDirection != GlobalNamespace::NoteCutDirection::Any && noteData2->cutDirection != GlobalNamespace::NoteCutDirection::Any)
+    {
+        return;
+    }
+    GlobalNamespace::NoteData* noteData3;
+    GlobalNamespace::NoteData* noteData4;
+    if (noteData->cutDirection != GlobalNamespace::NoteCutDirection::Any)
+    {
+        noteData3 = noteData;
+        noteData4 = noteData2;
+    }
+    else
+    {
+        noteData3 = noteData2;
+        noteData4 = noteData;
+    }
+
+    UnityEngine::Vector2 line = UnityEngine::Vector2::op_Subtraction(GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset(noteData4->lineIndex, self->_numberOfLines, noteData4->noteLineLayer) ,GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset(noteData3->lineIndex, self->_numberOfLines, noteData3->noteLineLayer));
+    UnityEngine::Vector2 vec = noteData3->cutDirection == GlobalNamespace::NoteCutDirection::Any ? UnityEngine::Vector2(0.0f, 1.0f) : GlobalNamespace::NoteCutDirectionExtensions::Direction(noteData3->cutDirection);
+    float num = GlobalNamespace::Vector2Extensions::SignedAngleToLine(vec, line);
+    if (noteData4->cutDirection == GlobalNamespace::NoteCutDirection::Any && noteData3->cutDirection == GlobalNamespace::NoteCutDirection::Any)
+    {
+        noteData3->SetCutDirectionAngleOffset(num);
+        noteData4->SetCutDirectionAngleOffset(num);
+        return;
+    }
+    if (UnityEngine::Mathf::Abs(num) > 40.0f)
+    {
+        return;
+    }
+    noteData3->SetCutDirectionAngleOffset(num);
+    if (noteData4->cutDirection == GlobalNamespace::NoteCutDirection::Any && !GlobalNamespace::NoteCutDirectionExtensions::IsMainDirection(noteData3->cutDirection))
+    {
+        noteData4->SetCutDirectionAngleOffset(num + 45.0f);
+        return;
+    }
+    noteData4->SetCutDirectionAngleOffset(num);
+}
+
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetNoteOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, const GlobalNamespace::NoteLineLayer noteLineLayer) {
 	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetNoteOffset(self, noteLineIndex, noteLineLayer);
@@ -662,6 +721,7 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 		// Hooking::InstallHook<Hook_BeatmapDataLoaderVersion4_BeatmapDataLoader_GetBeatmapDataFromSaveData>(logger); // TODO: implement
 	}
 
+        Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesAndSlidersDidFinishTimeSlice>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetSliderSpawnData>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetJumpingNoteSpawnData>(logger);
