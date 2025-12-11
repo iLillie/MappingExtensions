@@ -1,13 +1,12 @@
 // https://github.com/rxzz0/MappingExtensions/blob/main/src/main.cpp
 // Refactored and updated to 1.24.0+ by rcelyte
 
-#include <scotland2/shared/loader.hpp>
-
 #include <BeatmapDataLoaderVersion2_6_0AndEarlier/BeatmapDataLoaderVersion2_6_0AndEarlier.hpp>
 #include <BeatmapDataLoaderVersion3/BeatmapDataLoaderVersion3.hpp>
 #include <BeatmapSaveDataVersion2_6_0AndEarlier/BeatmapSaveDataVersion2_6_0AndEarlier.hpp>
 #include <BeatmapSaveDataVersion3/BeatmapSaveDataVersion3.hpp>
 #include <BeatmapSaveDataVersion4/BeatmapSaveDataVersion4.hpp>
+#include <beatsaber-hook/shared/utils/hooking.hpp>
 #include <GlobalNamespace/BeatmapData.hpp>
 #include <GlobalNamespace/BeatmapObjectsInTimeRowProcessor.hpp>
 #include <GlobalNamespace/BeatmapObjectSpawnMovementData.hpp>
@@ -23,17 +22,16 @@
 #include <GlobalNamespace/SliderMeshController.hpp>
 #include <GlobalNamespace/StaticBeatmapObjectSpawnMovementData.hpp>
 #include <GlobalNamespace/WaypointData.hpp>
-#include <System/Collections/Generic/LinkedList_1.hpp>
-#include <System/Diagnostics/Stopwatch.hpp>
-#include <UnityEngine/Mathf.hpp>
-#include <GlobalNamespace/NoteCutDirectionExtensions.hpp>
-
+#include <scotland2/shared/loader.hpp>
 #include <sombrero/shared/FastQuaternion.hpp>
 #include <sombrero/shared/FastVector2.hpp>
 #include <sombrero/shared/FastVector3.hpp>
-
-#include <beatsaber-hook/shared/utils/hooking.hpp>
 #include <songcore/shared/SongCore.hpp>
+#include <System/Collections/Generic/LinkedList_1.hpp>
+#include <System/Diagnostics/Stopwatch.hpp>
+#include <UnityEngine/Mathf.hpp>
+
+#include "BeatmapObjectsTransform.hpp"
 
 SafePtr(void) -> SafePtr<void>;
 
@@ -340,19 +338,25 @@ MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNam
 		GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
 }
 
-UnityEngine::Vector3 BeatmapObjectSpawnMovementData_GetObstacleOffset_modified(GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
-	const UnityEngine::Vector3 result = self->GetObstacleOffset(noteLineIndex, noteLineLayer);
-	if(!active)
-		return result;
-	if(noteLineIndex <= -1000)
-		noteLineIndex += 2000;
-	else if(noteLineIndex < 1000)
-		return result;
-	return Sombrero::FastVector3(self->_rightVec) * (static_cast<float>(-self->noteLinesCount + 1) * .5f +
-		static_cast<float>(noteLineIndex) * (GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kNoteLinesDistance / 1000.f)) +
-		Sombrero::FastVector3(0, GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer) +
-			GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kObstacleVerticalOffset, 0);
+bool isWithinGameBounds(int32_t value) {
+    // -999 -> 999
+    return value >= -999 && value <= 999;
 }
+
+MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
+    const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
+
+    if(!active || isWithinGameBounds(noteLineIndex))
+        return result;
+
+    if(noteLineIndex <= -1000)
+        noteLineIndex += 2000;
+
+
+    return MappingExtensions::BeatmapObjectsTransform::ObstacleOffset(self, noteLineIndex, noteLineLayer);
+}
+
+
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer, &GlobalNamespace::BeatmapObjectSpawnMovementData::HighestJumpPosYForLineLayer, float, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::NoteLineLayer lineLayer) {
 	float result = BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer(self, lineLayer);
@@ -494,7 +498,7 @@ MAKE_HOOK_MATCH(NoteData_Mirror, &GlobalNamespace::NoteData::Mirror, void, Globa
 }
 
 GlobalNamespace::ObstacleSpawnData BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
-	UnityEngine::Vector3 obstacleOffset = BeatmapObjectSpawnMovementData_GetObstacleOffset_modified(self, obstacleData->lineIndex, obstacleData->lineLayer);
+	UnityEngine::Vector3 obstacleOffset = self->GetObstacleOffset(obstacleData->lineIndex, obstacleData->lineLayer);
 	obstacleOffset.y += self->_jumpOffsetYProvider->jumpOffsetY;
 	obstacleOffset.y = UnityEngine::Mathf::Max(obstacleOffset.y, self->_verticalObstaclePosY);
 	float obstacleHeight = UnityEngine::Mathf::Min((float) obstacleData->height * 0.6f, self->_obstacleTopPosY - obstacleOffset.y);
@@ -643,6 +647,7 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 	Hooking::InstallHook<Hook_NoteCutDirectionExtensions_Mirrored>(logger);
 	Hooking::InstallHook<Hook_NoteData_Mirror>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetObstacleSpawnData>(logger);
+        Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetObstacleOffset>(logger);
 	Hooking::InstallHook<Hook_ObstacleData_Mirror>(logger);
 	Hooking::InstallHook<Hook_SliderData_Mirror>(logger);
 	if constexpr(UseOrigHooks) {
