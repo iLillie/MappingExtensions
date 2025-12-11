@@ -411,14 +411,19 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetSliderSpawnData, &GlobalNamesp
 }
 
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
-	UnityEngine::Vector2 result = StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset(noteLineIndex, noteLinesCount, noteLineLayer);
 	if(!isMappingExtensionsMap)
-		return result;
-	if(noteLineIndex <= -1000)
-		noteLineIndex += 2000;
-	else if(noteLineIndex < 1000)
-		return result;
-	return UnityEngine::Vector2(
+		return StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset(noteLineIndex, noteLinesCount, noteLineLayer);
+        // INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer function instead of inlined
+        // Added in: Unity 6 update
+        auto result = UnityEngine::Vector2((-static_cast<float>(noteLinesCount - 1) * 0.5f + static_cast<float>(noteLineIndex)) * 0.6f, GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
+
+        if (isWithinGameBounds(noteLineIndex))
+            return result;
+
+        if(noteLineIndex <= -1000)
+            noteLineIndex += 2000;
+
+        return UnityEngine::Vector2(
 		static_cast<float>(-noteLinesCount + 1) * .5f + static_cast<float>(noteLineIndex) *
 			(GlobalNamespace::StaticBeatmapObjectSpawnMovementData::kNoteLinesDistance / 1000.f),
 		GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer));
@@ -427,10 +432,16 @@ MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNam
 
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
-    const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
+    if(!isMappingExtensionsMap)
+        return BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
 
-    if(!isMappingExtensionsMap || isWithinGameBounds(noteLineIndex))
-        return result;
+    // INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer function instead of inlined
+    // Added in: Unity 6 update
+    if (isWithinGameBounds(noteLineIndex)) {
+        float num = -static_cast<float>(self->_noteLinesCount - 1) * 0.5f;
+        num = (num + static_cast<float>(noteLineIndex)) * 0.6f;
+        return Sombrero::FastVector3(self->_rightVec) * num + Sombrero::FastVector3(UnityEngine::Vector3(0.0f,  GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(noteLineLayer) + -0.15f, 0.0f));
+    }
 
     if(noteLineIndex <= -1000)
         noteLineIndex += 2000;
