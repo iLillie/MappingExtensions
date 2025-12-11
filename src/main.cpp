@@ -417,6 +417,17 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetSliderSpawnData, &GlobalNamesp
     return GlobalNamespace::SliderSpawnData(noteOffset, self->GetGravityBase(sliderData->headLineLayer, sliderData->headBeforeJumpLineLayer), noteOffset2, self->GetGravityBase(sliderData->tailLineLayer, sliderData->tailBeforeJumpLineLayer));
 }
 
+// INLINE-FIX: call StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer function instead of inlined
+// Added in: Unity 6 update
+MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetGravityBase, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetGravityBase, float, GlobalNamespace::BeatmapObjectSpawnMovementData*const self, GlobalNamespace::NoteLineLayer noteLineLayer, GlobalNamespace::NoteLineLayer beforeJumpLineLayer) {
+    if (!isMappingExtensionsMap)
+        return BeatmapObjectSpawnMovementData_GetGravityBase(self, noteLineLayer, beforeJumpLineLayer);
+
+    return self->HighestJumpPosYForLineLayer(noteLineLayer) -
+           GlobalNamespace::StaticBeatmapObjectSpawnMovementData::LineYPosForLineLayer(beforeJumpLineLayer);
+}
+
+
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
 	if(!isMappingExtensionsMap)
 		return StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset(noteLineIndex, noteLinesCount, noteLineLayer);
@@ -741,6 +752,7 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 
         Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandlePerColorTypeTimeSliceContainerDidFinishTimeSlice>(logger);
 	Hooking::InstallHook<Hook_BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesAndSlidersDidFinishTimeSlice>(logger);
+        Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetGravityBase>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetSliderSpawnData>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetJumpingNoteSpawnData>(logger);
         Hooking::InstallHook<Hook_BeatmapObjectSpawnMovementData_GetNoteOffset>(logger);
