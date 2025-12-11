@@ -46,10 +46,10 @@ static const std::string_view requirementNames[] = {
 	"Mapping Extensions-More Lanes",
 };
 
-static bool active = false;
+static bool isMappingExtensionsMap = false;
 MAKE_HOOK_MATCH(GameplayCoreSceneSetupData_LoadTransformedBeatmapDataAsync, &GlobalNamespace::GameplayCoreSceneSetupData::LoadTransformedBeatmapDataAsync,
 		System::Threading::Tasks::Task*, GlobalNamespace::GameplayCoreSceneSetupData *const self) {
-	active = [self]() -> bool {
+	isMappingExtensionsMap = [self]() -> bool {
 		auto *const beatmapLevel = il2cpp_utils::try_cast<SongCore::SongLoader::CustomBeatmapLevel>(self->beatmapLevel).value_or(nullptr);
 		if(beatmapLevel == nullptr) {
 			logger.warn("level missing SongCore metadata");
@@ -72,13 +72,13 @@ MAKE_HOOK_MATCH(GameplayCoreSceneSetupData_LoadTransformedBeatmapDataAsync, &Glo
 					return true;
 		return false;
 	}();
-	logger.info("Should activate: {}", active);
+	logger.info("Should activate: {}", isMappingExtensionsMap);
 	return GameplayCoreSceneSetupData_LoadTransformedBeatmapDataAsync(self);
 }
 
 MAKE_HOOK_MATCH(GameplayCoreSceneSetupData_LoadTransformedBeatmapData, &GlobalNamespace::GameplayCoreSceneSetupData::LoadTransformedBeatmapData,
 		void, GlobalNamespace::GameplayCoreSceneSetupData *const self) {
-	active = false;
+	isMappingExtensionsMap = false;
 	logger.info("Should activate: sync load");
 	GameplayCoreSceneSetupData_LoadTransformedBeatmapData(self);
 }
@@ -192,7 +192,7 @@ MAKE_HOOK_MATCH(BeatmapDataLoaderVersion2_6_0AndEarlier_BeatmapDataLoader_GetBea
 		const GlobalNamespace::BeatmapDifficulty beatmapDifficulty, const float startBpm, const bool loadingForDesignatedEnvironment,
 		GlobalNamespace::EnvironmentKeywords *const environmentKeywords, GlobalNamespace::IEnvironmentLightGroups *const environmentLightGroups,
 		GlobalNamespace::PlayerSpecificSettings *const playerSpecificSettings, GlobalNamespace::IBeatmapLightEventConverter *const lightEventConverter) {
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return BeatmapDataLoaderVersion2_6_0AndEarlier_BeatmapDataLoader_GetBeatmapDataFromSaveData(beatmapSaveData, defaultLightshowSaveData,
 			beatmapDifficulty, startBpm, loadingForDesignatedEnvironment, environmentKeywords, environmentLightGroups, playerSpecificSettings, lightEventConverter);
 	SafePtr<GlobalNamespace::BpmTimeProcessor> bpmState =
@@ -237,7 +237,7 @@ MAKE_HOOK_MATCH(BeatmapDataLoaderVersion3_BeatmapDataLoader_GetBeatmapDataFromSa
 		GlobalNamespace::EnvironmentKeywords *const environmentKeywords, GlobalNamespace::IEnvironmentLightGroups *const environmentLightGroups,
 		GlobalNamespace::PlayerSpecificSettings *const playerSpecificSettings, GlobalNamespace::IBeatmapLightEventConverter *const lightEventConverter,
 		System::Diagnostics::Stopwatch *const stopwatch) {
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return BeatmapDataLoaderVersion3_BeatmapDataLoader_GetBeatmapDataFromSaveData(beatmapSaveData, defaultLightshowSaveData, beatmapDifficulty,
 			startBpm, loadingForDesignatedEnvironment, environmentKeywords, environmentLightGroups, playerSpecificSettings, lightEventConverter, stopwatch);
 	SafePtr<GlobalNamespace::BpmTimeProcessor> bpmState =
@@ -313,7 +313,7 @@ MAKE_HOOK_MATCH(BeatmapObjectsInTimeRowProcessor_HandleCurrentTimeSliceAllNotesA
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetNoteOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, const GlobalNamespace::NoteLineLayer noteLineLayer) {
 	const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetNoteOffset(self, noteLineIndex, noteLineLayer);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(noteLineIndex <= -1000)
 		noteLineIndex += 2000;
@@ -326,7 +326,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetNoteOffset, &GlobalNamespace::
 
 MAKE_HOOK_MATCH(StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset, &GlobalNamespace::StaticBeatmapObjectSpawnMovementData::Get2DNoteOffset, UnityEngine::Vector2, int32_t noteLineIndex, int32_t noteLinesCount, GlobalNamespace::NoteLineLayer noteLineLayer) {
 	UnityEngine::Vector2 result = StaticBeatmapObjectSpawnMovementData_Get2DNoteOffset(noteLineIndex, noteLinesCount, noteLineLayer);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(noteLineIndex <= -1000)
 		noteLineIndex += 2000;
@@ -346,7 +346,7 @@ bool isWithinGameBounds(int32_t value) {
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleOffset, UnityEngine::Vector3, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, int32_t noteLineIndex, GlobalNamespace::NoteLineLayer noteLineLayer) {
     const UnityEngine::Vector3 result = BeatmapObjectSpawnMovementData_GetObstacleOffset(self, noteLineIndex, noteLineLayer);
 
-    if(!active || isWithinGameBounds(noteLineIndex))
+    if(!isMappingExtensionsMap || isWithinGameBounds(noteLineIndex))
         return result;
 
     if(noteLineIndex <= -1000)
@@ -360,7 +360,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleOffset, &GlobalNamespa
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer, &GlobalNamespace::BeatmapObjectSpawnMovementData::HighestJumpPosYForLineLayer, float, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::NoteLineLayer lineLayer) {
 	float result = BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer(self, lineLayer);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	const float delta = (self->_topLinesHighestJumpPosY - self->_upperLinesHighestJumpPosY);
 	if(lineLayer.value__ >= 1000 || lineLayer.value__ <= -1000)
@@ -373,7 +373,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_HighestJumpPosYForLineLayer, &Glo
 
 MAKE_HOOK_MATCH(ColorNoteVisuals_HandleNoteControllerDidInit, &GlobalNamespace::ColorNoteVisuals::HandleNoteControllerDidInit,
 		void, GlobalNamespace::ColorNoteVisuals *const self, GlobalNamespace::NoteControllerBase *const noteController) {
-	if(active) {
+	if(isMappingExtensionsMap) {
 		GlobalNamespace::NoteData *const note = self->_noteController->noteData;
 		const int32_t cutDirection = note->cutDirection.value__;
 		if(cutDirection >= 2000 && cutDirection <= 2360) {
@@ -390,14 +390,14 @@ MAKE_HOOK_MATCH(NoteBasicCutInfoHelper_GetBasicCutInfo, &GlobalNamespace::NoteBa
 		const GlobalNamespace::ColorType colorType, GlobalNamespace::NoteCutDirection cutDirection, const GlobalNamespace::SaberType saberType, const float saberBladeSpeed,
 		const UnityEngine::Vector3 cutDirVec, const float cutAngleTolerance, const ByRef<bool> directionOK, const ByRef<bool> speedOK, const ByRef<bool> saberTypeOK,
 		const ByRef<float> cutDirDeviation, const ByRef<float> cutDirAngle) {
-	if(active && cutDirection.value__ >= 2000 && cutDirection.value__ <= 2360)
+	if(isMappingExtensionsMap && cutDirection.value__ >= 2000 && cutDirection.value__ <= 2360)
 		cutDirection = GlobalNamespace::NoteCutDirection::Any;
 	NoteBasicCutInfoHelper_GetBasicCutInfo(noteTransform, colorType, cutDirection, saberType, saberBladeSpeed, cutDirVec, cutAngleTolerance, directionOK, speedOK, saberTypeOK, cutDirDeviation, cutDirAngle);
 }
 
 MAKE_HOOK_MATCH(NoteCutDirectionExtensions_Rotation, &GlobalNamespace::NoteCutDirectionExtensions::Rotation, UnityEngine::Quaternion, GlobalNamespace::NoteCutDirection cutDirection, float offset) {
 	UnityEngine::Quaternion result = NoteCutDirectionExtensions_Rotation(cutDirection, offset);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(cutDirection.value__ >= 1000 && cutDirection.value__ <= 1360) {
 		result = UnityEngine::Quaternion();
@@ -427,7 +427,7 @@ MAKE_HOOK_MATCH(NoteCutDirectionExtensions_Direction,
 	} else {
 		result = NoteCutDirectionExtensions_Direction(cutDirection);
 	}
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	int32_t offset = 2000;
 	if(cutDirection.value__ >= 1000 && cutDirection.value__ <= 1360)
@@ -458,7 +458,7 @@ MAKE_HOOK_MATCH_NO_CATCH(NoteCutDirectionExtensions_RotationAngle,
 	} else {
 		result = NoteCutDirectionExtensions_RotationAngle(cutDirection);
 	}
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(cutDirection.value__ >= 1000 && cutDirection.value__ <= 1360)
 		return static_cast<float>(1000 - cutDirection.value__);
@@ -469,7 +469,7 @@ MAKE_HOOK_MATCH_NO_CATCH(NoteCutDirectionExtensions_RotationAngle,
 
 MAKE_HOOK_MATCH(NoteCutDirectionExtensions_Mirrored, &GlobalNamespace::NoteCutDirectionExtensions::Mirrored, GlobalNamespace::NoteCutDirection, GlobalNamespace::NoteCutDirection cutDirection) {
 	GlobalNamespace::NoteCutDirection result = NoteCutDirectionExtensions_Mirrored(cutDirection);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(cutDirection.value__ >= 1000 && cutDirection.value__ <= 1360)
 		return 2360 - cutDirection.value__;
@@ -489,7 +489,7 @@ static std::optional<int32_t> MirrorPrecisionLineIndex(const int32_t lineIndex) 
 MAKE_HOOK_MATCH(NoteData_Mirror, &GlobalNamespace::NoteData::Mirror, void, GlobalNamespace::NoteData *const self, int32_t lineCount) {
 	const int32_t lineIndex = self->lineIndex, flipLineIndex = self->flipLineIndex;
 	NoteData_Mirror(self, lineCount);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return;
 	if(const std::optional<int32_t> newLineIndex = MirrorPrecisionLineIndex(lineIndex))
 		self->set_lineIndex(*newLineIndex);
@@ -512,7 +512,7 @@ MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleSpawnData, &GlobalName
 		GlobalNamespace::ObstacleSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
 	GlobalNamespace::ObstacleSpawnData result = BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(self, obstacleData);
 	float obstacleWidth = static_cast<float>(obstacleData->width);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(obstacleWidth <= -1000 || obstacleWidth >= 1000) {
 		result.moveOffset.x = result.moveOffset.x - (obstacleWidth * .6f - .6f) * .5f;
@@ -544,7 +544,7 @@ static int32_t ToNormalizedPrecisionIndex(int32_t index) {
 MAKE_HOOK_MATCH(ObstacleData_Mirror, &GlobalNamespace::ObstacleData::Mirror, void, GlobalNamespace::ObstacleData *const self, int32_t lineCount) {
 	int32_t lineIndex = self->lineIndex;
 	ObstacleData_Mirror(self, lineCount);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return;
 	if(lineIndex >= 1000 || lineIndex <= -1000 || self->width >= 1000 || self->width <= -1000) {
 		const int32_t newIndex = 4000 - ToNormalizedPrecisionIndex(lineIndex) - ToNormalizedPrecisionIndex(self->width);
@@ -557,7 +557,7 @@ MAKE_HOOK_MATCH(ObstacleData_Mirror, &GlobalNamespace::ObstacleData::Mirror, voi
 MAKE_HOOK_MATCH(SliderData_Mirror, &GlobalNamespace::SliderData::Mirror, void, GlobalNamespace::SliderData *const self, int32_t lineCount) {
 	const int32_t headLineIndex = self->headLineIndex, tailLineIndex = self->tailLineIndex;
 	SliderData_Mirror(self, lineCount);
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return;
 	if(const std::optional<int32_t> newHeadLineIndex = MirrorPrecisionLineIndex(headLineIndex))
 		self->headLineIndex = *newHeadLineIndex;
@@ -579,7 +579,7 @@ MAKE_HOOK_MATCH(SliderMeshController_CutDirectionToControlPointPosition, &Global
 	} else {
 		result = SliderMeshController_CutDirectionToControlPointPosition(noteCutDirection, angleOffset);
 	}
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	if(noteCutDirection.value__ >= 1000 && noteCutDirection.value__ <= 1360) {
 		Sombrero::FastQuaternion quaternion = Sombrero::FastQuaternion();
@@ -602,7 +602,7 @@ MAKE_HOOK_MATCH_NO_CATCH(StaticBeatmapObjectSpawnMovementData_LineYPosForLineLay
 	} else {
 		result = StaticBeatmapObjectSpawnMovementData_LineYPosForLineLayer(lineLayer);
 	}
-	if(!active)
+	if(!isMappingExtensionsMap)
 		return result;
 	constexpr float delta = 1.45f - 0.85f;
 	if(lineLayer.value__ >= 1000 || lineLayer.value__ <= -1000)
