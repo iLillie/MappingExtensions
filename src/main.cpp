@@ -521,6 +521,8 @@ MAKE_HOOK_MATCH(NoteData_Mirror, &GlobalNamespace::NoteData::Mirror, void, Globa
 		self->set_flipLineIndex(*newFlipLineIndex);
 }
 
+// INLINE-FIX: call BeatmapObjectSpawnMovementData::GetObstacleOffset function instead of inlined
+// Added in: Unity 6 update
 GlobalNamespace::ObstacleSpawnData BeatmapObjectSpawnMovementData_GetObstacleSpawnData_modified(GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
 	UnityEngine::Vector3 obstacleOffset = self->GetObstacleOffset(obstacleData->lineIndex, obstacleData->lineLayer);
 	obstacleOffset.y += self->_jumpOffsetYProvider->jumpOffsetY;
@@ -530,7 +532,6 @@ GlobalNamespace::ObstacleSpawnData BeatmapObjectSpawnMovementData_GetObstacleSpa
 	obstacleOffset.x += (float) (((double) obstacleWidth - 0.6000000238418579) * 0.5);
 	return GlobalNamespace::ObstacleSpawnData(obstacleOffset, obstacleWidth, obstacleHeight);
 }
-
 
 MAKE_HOOK_MATCH(BeatmapObjectSpawnMovementData_GetObstacleSpawnData, &GlobalNamespace::BeatmapObjectSpawnMovementData::GetObstacleSpawnData,
 		GlobalNamespace::ObstacleSpawnData, GlobalNamespace::BeatmapObjectSpawnMovementData *const self, GlobalNamespace::ObstacleData *const obstacleData) {
