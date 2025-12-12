@@ -11,5 +11,5 @@
   - [x] BeatmapObjectSpawnMovementData::GetSliderSpawnData
 
 ## Others
-- [ ] Add mod.json
+- [X] update qpm mod template
 - [ ] Look into 360 rotation events not working as expected.
