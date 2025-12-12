@@ -1,16 +1,33 @@
 {
   "$schema": "https://raw.githubusercontent.com/Lauriethefish/QuestPatcher.QMod/main/QuestPatcher.QMod/Resources/qmod.schema.json",
-  "_QPVersion": "0.1.1",
+  "_QPVersion": "1.2.0",
   "name": "${mod_name}",
   "id": "${mod_id}",
   "coverImage": "cover.png",
-  "author": "All different people",
+  "author": "StackDoubleFlow, rxzz0, rcelyte & Lillie",
   "version": "${version}",
   "packageId": "com.beatgames.beatsaber",
   "packageVersion": "1.41.0_11623",
-  "description": "Yes new template",
-  "dependencies": [],
-  "modFiles": [
+  "description": "This adds a host of new things you can do with your maps as a mapper, and allows you to play said maps as a player. An update of the port of the PC original mod by Kyle 1413. Previously maintained by zoller27osu.",
+  "dependencies": [
+    {
+      "version": "^7.4.0",
+      "id": "beatsaber-hook",
+      "downloadIfMissing": "https://github.com/QuestPackageManager/beatsaber-hook/releases/download/v7.4.0/beatsaber-hook.qmod"
+    },
+    {
+      "version": "^4.6.4",
+      "id": "paper2_scotland2",
+      "downloadIfMissing": "https://github.com/Fernthedev/paperlog/releases/download/v4.6.4/paper2_scotland2.qmod"
+    },
+    {
+      "version": "^1.2.0",
+      "id": "songcore",
+      "downloadIfMissing": "https://github.com/raineio/Quest-SongCore/releases/download/v1.2.0/SongCore.qmod"
+    }
+  ],
+  "modFiles": [],
+  "lateModFiles": [
     "${binary}"
   ],
   "libraryFiles": [],
