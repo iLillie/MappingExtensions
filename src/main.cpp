@@ -1,6 +1,3 @@
-// https://github.com/rxzz0/MappingExtensions/blob/main/src/main.cpp
-// Refactored and updated to 1.24.0+ by rcelyte
-
 #include <BeatmapDataLoaderVersion2_6_0AndEarlier/BeatmapDataLoaderVersion2_6_0AndEarlier.hpp>
 #include <BeatmapDataLoaderVersion3/BeatmapDataLoaderVersion3.hpp>
 #include <BeatmapSaveDataVersion2_6_0AndEarlier/BeatmapSaveDataVersion2_6_0AndEarlier.hpp>
@@ -10,6 +7,12 @@
 #include <GlobalNamespace/BeatmapData.hpp>
 #include <GlobalNamespace/BeatmapObjectsInTimeRowProcessor.hpp>
 #include <GlobalNamespace/BeatmapObjectSpawnMovementData.hpp>
+#include <GlobalNamespace/BpmTimeProcessor.hpp>
+#include <GlobalNamespace/IJumpOffsetYProvider.hpp>
+#include <GlobalNamespace/NoteControllerBase.hpp>
+#include <GlobalNamespace/RotationTimeProcessor.hpp>
+#include <System/Collections/Generic/IReadOnlyCollection_1.hpp>
+#include <System/Collections/Generic/LinkedListNode_1.hpp>
 #include <GlobalNamespace/ColorNoteVisuals.hpp>
 #include <GlobalNamespace/EnvironmentKeywords.hpp>
 #include <GlobalNamespace/GameplayCoreSceneSetupData.hpp>
@@ -33,7 +36,6 @@
 #include <System/Diagnostics/Stopwatch.hpp>
 #include <System/Collections/Generic/IReadOnlyList_1.hpp>
 #include <GlobalNamespace/Vector2Extensions.hpp>
-#include <GlobalNamespace/RotationTimeProcessor.hpp>
 
 #include <UnityEngine/Mathf.hpp>
 
@@ -798,12 +800,3 @@ extern "C" [[gnu::visibility("default")]] void late_load() {
 	for(const std::string_view name : requirementNames)
 		SongCore::API::Capabilities::RegisterCapability(name);
 }
-
-#include <GlobalNamespace/zzzz__BeatmapData_impl.hpp>
-#include <GlobalNamespace/zzzz__BpmTimeProcessor_impl.hpp>
-#include <GlobalNamespace/zzzz__IJumpOffsetYProvider_impl.hpp>
-#include <GlobalNamespace/zzzz__NoteControllerBase_impl.hpp>
-#include <GlobalNamespace/zzzz__RotationTimeProcessor_impl.hpp>
-#include <System/Collections/Generic/zzzz__IReadOnlyCollection_1_impl.hpp>
-#include <System/Collections/Generic/zzzz__IReadOnlyList_1_impl.hpp>
-#include <System/Collections/Generic/zzzz__LinkedListNode_1_impl.hpp>
